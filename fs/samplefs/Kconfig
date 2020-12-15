@@ -1,0 +1,9 @@
+config SAMPLEFS_FS
+	tristate "Samplefs support"
+	help
+	  Samplefs is a Linux file system for leanrning the basic fs concepts.
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called sample.
+
+	  If unsure, say Y.
