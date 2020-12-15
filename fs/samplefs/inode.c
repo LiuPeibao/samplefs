@@ -55,7 +55,7 @@ static struct dentry *sfs_lookup(struct inode *dir, struct dentry *dentry,
 }
 
 static int
-sfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
+sfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	struct inode * inode = samplefs_get_inode(dir->i_sb, mode, dev);
 	int error = -ENOSPC;
@@ -79,7 +79,7 @@ sfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 }
 
 
-static int sfs_mkdir(struct inode * dir, struct dentry * dentry, int mode)
+static int sfs_mkdir(struct inode * dir, struct dentry * dentry, umode_t mode)
 {
 	int retval = 0;
 
@@ -91,8 +91,8 @@ static int sfs_mkdir(struct inode * dir, struct dentry * dentry, int mode)
 	return retval;
 }
 
-static int sfs_create(struct inode *dir, struct dentry *dentry, int mode,
-			struct nameidata *nd)
+static int sfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
+			bool excl)
 {
 	return sfs_mknod(dir, dentry, mode | S_IFREG, 0);
 }
