@@ -114,7 +114,7 @@ samplefs_parse_mount_options(char *options, struct samplefs_sb_info *sfs_sb)
 	}
 }
 
-static int sfs_ci_hash(struct dentry *dentry, struct qstr *q)
+static int sfs_ci_hash(const struct dentry *dentry, struct qstr *q)
 {
         struct nls_table *codepage = SFS_SB(dentry->d_inode->i_sb)->local_nls;
         unsigned long hash;
@@ -129,19 +129,19 @@ static int sfs_ci_hash(struct dentry *dentry, struct qstr *q)
         return 0;
 }
 
-static int sfs_ci_compare(struct dentry *dentry, struct qstr *a,
-                           struct qstr *b)
+static int sfs_ci_compare(const struct dentry *parent, const struct dentry *dentry,
+		unsigned int len, const char *str, const struct qstr *name)
 {
         struct nls_table *codepage = SFS_SB(dentry->d_inode->i_sb)->local_nls;
 
-        if ((a->len == b->len) &&
-            (nls_strnicmp(codepage, a->name, b->name, a->len) == 0)) {
+        if ((len == name->len) &&
+            (nls_strnicmp(codepage, str, name->name, len) == 0)) {
                 /*
                  * To preserve case, don't let an existing negative dentry's
                  * case take precedence.  If a is not a negative dentry, this
                  * should have no side effects
                  */
-                memcpy((unsigned char *)a->name, b->name, a->len);
+                memcpy((unsigned char *)str, name->name, len);
                 return 0;
         }
         return 1;
@@ -151,7 +151,7 @@ static int sfs_ci_compare(struct dentry *dentry, struct qstr *a,
 in memory - we are not saving anything as we would for network
 or disk filesystem */
 
-static int sfs_delete_dentry(struct dentry *dentry)
+static int sfs_delete_dentry(const struct dentry *dentry)
 {
         return 1;
 }
@@ -168,7 +168,7 @@ static struct dentry_operations sfs_ci_dentry_ops = {
  * negative.  Set d_op to delete negative dentries to save memory
  * (and since it does not help performance for in memory filesystem).
  */
-static struct dentry *sfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
+static struct dentry *sfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 {
 	if (dentry->d_name.len > NAME_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
