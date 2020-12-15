@@ -31,10 +31,15 @@
 #include <linux/pagemap.h>
 #include <linux/version.h>
 #include <linux/nls.h>
+#include <linux/proc_fs.h>
 #include "samplefs.h"
 
 /* helpful if this is different than other fs */
 #define SAMPLEFS_MAGIC     0x73616d70 /* "SAMP" */
+
+unsigned int sample_parm = 0;
+module_param(sample_parm, int, 0);
+MODULE_PARM_DESC(sample_parm, "An example parm. Default: x Range: y to z");
 
 static void
 samplefs_put_super(struct super_block *sb)
@@ -72,6 +77,8 @@ samplefs_parse_mount_options(char *options, struct samplefs_sb_info *sfs_sb)
 	if (!options)
 		return;
 
+	printk(KERN_INFO "samplefs: parsing mount options %s\n", options);
+
 	while ((data = strsep(&options, ",")) != NULL) {
 		if (!*data)
 			continue;
@@ -83,14 +90,21 @@ samplefs_parse_mount_options(char *options, struct samplefs_sb_info *sfs_sb)
 				size = simple_strtoul(value, &value, 0);
 				if (size > 0)
 					sfs_sb->rsize = size;
+					printk(KERN_INFO
+						"samplefs: rsize %d\n", size);
 			}
 		} else if (strnicmp(data, "wsize", 5) == 0) {
 			if (value && *value) {
 				size = simple_strtoul(value, &value, 0);
 				if (size > 0)
 					sfs_sb->wsize = size;
+					printk(KERN_INFO
+						"samplefs: wsize %d\n", size);
 			}
-		} /* else unknown mount option */
+		} else {
+			printk(KERN_WARNING "samplefs: bad mount option %s\n",
+				data);
+		}
 	}
 }
 
@@ -106,6 +120,8 @@ static int samplefs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_op = &samplefs_super_ops;
 	sb->s_time_gran = 1; /* 1 nanosecond time granularity */
 
+	printk(KERN_INFO "samplefs: fill super\n");
+
 /* Eventually replace iget with:
 	inode = samplefs_get_inode(sb, S_IFDIR | 0755, 0); */
 
@@ -114,6 +130,9 @@ static int samplefs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!inode)
 		return -ENOMEM;
 
+#ifdef CONFIG_SAMPLEFS_DEBUG
+	printk(KERN_INFO "samplefs: about to alloc s_fs_info\n");
+#endif
 	inode->i_mode = (S_IFDIR | 0755);
 
 	sb->s_fs_info = kzalloc(sizeof(struct samplefs_sb_info), GFP_KERNEL);
@@ -122,6 +141,8 @@ static int samplefs_fill_super(struct super_block *sb, void *data, int silent)
 		iput(inode);
 		return -ENOMEM;
 	}
+
+	printk(KERN_INFO "samplefs: about to alloc root inode\n");
 
 	sb->s_root = d_make_root(inode);
 	if (!sb->s_root) {
@@ -163,14 +184,88 @@ static struct file_system_type samplefs_fs_type = {
 	/*  .fs_flags */
 };
 
+#ifdef CONFIG_PROC_FS
+static struct proc_dir_entry *proc_fs_samplefs;
+
+static int
+sfs_debug_read(char *buf, char **beginBuffer, off_t offset,
+		int count, int *eof, void *data)
+{
+	int length = 0;
+	char *original_buf = buf;
+
+	*beginBuffer = buf + offset;
+
+	length = sprintf(buf,
+			"Display Debugging Information\n"
+			"-----------------------------\n");
+
+	buf += length;
+
+	/* FS-FILLIN - add your debug information here */
+
+	length = buf - original_buf;
+	if (offset + count >= length)
+		*eof = 1;
+	if (length < offset) {
+		*eof = 1;
+		return 0;
+	} else {
+		length = length - offset;
+	}
+
+	if (length > count)
+		length = count;
+
+	return length;
+}
+
+void
+sfs_proc_init(void)
+{
+	proc_fs_samplefs = proc_mkdir("samplefs", proc_root_fs);
+	if (proc_fs_samplefs == NULL)
+		return;
+
+	proc_fs_samplefs->owner = THIS_MODULE;
+	create_proc_read_entry("DebugData", 0, proc_fs_samplefs,
+				sfs_debug_read, NULL);
+}
+
+void
+sfs_proc_clean(void)
+{
+	if (proc_fs_samplefs == NULL)
+		return;
+
+	remove_proc_entry("DebugData", proc_fs_samplefs);
+	remove_proc_entry("samplefs", proc_root_fs);
+}
+#endif /* CONFIG_PROC_FS */
 
 static int __init init_samplefs_fs(void)
 {
+	printk(KERN_INFO "init samplefs\n");
+#ifdef CONFIG_PROC_FS
+	sfs_proc_init();
+#endif
+
+	/* some filesystems pass optional parms at load time */
+	if (sample_parm > 256) {
+		printk(KERN_ERR "sample_parm %d too large, reset to 10\n",
+			sample_parm);
+		sample_parm = 10;
+	}
+
 	return register_filesystem(&samplefs_fs_type);
 }
 
 static void __exit exit_samplefs_fs(void)
 {
+	printk(KERN_INFO "unloading samplefs\n");
+#ifdef CONFIG_PROC_FS
+	sfs_proc_clean();
+#endif
 	unregister_filesystem(&samplefs_fs_type);
 }
 
