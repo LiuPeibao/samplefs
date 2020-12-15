@@ -27,6 +27,7 @@
 
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/version.h>
@@ -115,8 +116,8 @@ struct inode *samplefs_get_inode(struct super_block *sb, int mode, dev_t dev)
 
         if (inode) {
                 inode->i_mode = mode;
-                inode->i_uid = current->fsuid;
-                inode->i_gid = current->fsgid;
+                inode->i_uid = current->cred->fsuid;
+                inode->i_gid = current->cred->fsgid;
                 inode->i_blocks = 0;
                 inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
                 switch (mode & S_IFMT) {
