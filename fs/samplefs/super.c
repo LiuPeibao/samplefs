@@ -32,6 +32,7 @@
 #include <linux/version.h>
 #include <linux/nls.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include "samplefs.h"
 
 /* helpful if this is different than other fs */
@@ -188,37 +189,25 @@ static struct file_system_type samplefs_fs_type = {
 static struct proc_dir_entry *proc_fs_samplefs;
 
 static int
-sfs_debug_read(char *buf, char **beginBuffer, off_t offset,
-		int count, int *eof, void *data)
+sfs_proc_show(struct seq_file *m, void *v)
 {
-	int length = 0;
-	char *original_buf = buf;
-
-	*beginBuffer = buf + offset;
-
-	length = sprintf(buf,
-			"Display Debugging Information\n"
+	seq_printf(m, "Display Debugging Information\n"
 			"-----------------------------\n");
-
-	buf += length;
-
-	/* FS-FILLIN - add your debug information here */
-
-	length = buf - original_buf;
-	if (offset + count >= length)
-		*eof = 1;
-	if (length < offset) {
-		*eof = 1;
-		return 0;
-	} else {
-		length = length - offset;
-	}
-
-	if (length > count)
-		length = count;
-
-	return length;
+	return 0;
 }
+
+static int
+sfs_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, sfs_proc_show, NULL);
+}
+
+static const struct file_operations proc_sfs_fops = {
+	.open		= sfs_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
 
 void
 sfs_proc_init(void)
@@ -227,8 +216,7 @@ sfs_proc_init(void)
 	if (proc_fs_samplefs == NULL)
 		return;
 
-	create_proc_read_entry("DebugData", 0, proc_fs_samplefs,
-				sfs_debug_read, NULL);
+	proc_create("DebugData", 0, proc_fs_samplefs, &proc_sfs_fops);
 }
 
 void
