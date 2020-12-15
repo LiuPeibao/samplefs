@@ -109,6 +109,35 @@ samplefs_parse_mount_options(char *options, struct samplefs_sb_info *sfs_sb)
 	}
 }
 
+struct inode *samplefs_get_inode(struct super_block *sb, int mode, dev_t dev)
+{
+        struct inode * inode = new_inode(sb);
+
+        if (inode) {
+                inode->i_mode = mode;
+                inode->i_uid = current->fsuid;
+                inode->i_gid = current->fsgid;
+                inode->i_blocks = 0;
+                inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+                switch (mode & S_IFMT) {
+                default:
+			init_special_inode(inode, mode, dev);
+			break;
+/* We are not ready to handle files yet */
+/*                case S_IFREG:
+			inode->i_op = &sfs_file_inode_operations;
+			break; */
+                case S_IFDIR:
+                        inode->i_op = &simple_dir_inode_operations;
+
+                        /* link == 2 (for initial ".." and "." entries) */
+                        inode->i_nlink++;
+                        break;
+                }
+        }
+        return inode;
+}
+
 static int samplefs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *inode;
@@ -123,10 +152,7 @@ static int samplefs_fill_super(struct super_block *sb, void *data, int silent)
 
 	printk(KERN_INFO "samplefs: fill super\n");
 
-/* Eventually replace iget with:
-	inode = samplefs_get_inode(sb, S_IFDIR | 0755, 0); */
-
-	inode = iget_locked(sb, SAMPLEFS_ROOT_I);
+	inode = samplefs_get_inode(sb, S_IFDIR | 0755, 0);
 
 	if (!inode)
 		return -ENOMEM;
