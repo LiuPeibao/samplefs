@@ -223,7 +223,7 @@ sfs_debug_read(char *buf, char **beginBuffer, off_t offset,
 void
 sfs_proc_init(void)
 {
-	proc_fs_samplefs = proc_mkdir("samplefs", proc_root_fs);
+	proc_fs_samplefs = proc_mkdir("fs/samplefs", NULL);
 	if (proc_fs_samplefs == NULL)
 		return;
 
@@ -239,7 +239,7 @@ sfs_proc_clean(void)
 		return;
 
 	remove_proc_entry("DebugData", proc_fs_samplefs);
-	remove_proc_entry("samplefs", proc_root_fs);
+	remove_proc_entry("fs/samplefs", NULL);
 }
 #endif /* CONFIG_PROC_FS */
 
