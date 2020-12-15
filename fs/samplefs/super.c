@@ -44,10 +44,10 @@ struct super_block * samplefs_get_sb(struct file_system_type *fs_type,
 	return get_sb_nodev(fs_type, flags, data, samplefs_fill_super);
 }
 #else
-int samplefs_get_sb(struct file_system_type *fs_type,
-        int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *samplefs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_nodev(fs_type, flags, data, samplefs_fill_super, mnt);
+	return mount_nodev(fs_type, flags, data, samplefs_fill_super);
 }
 #endif
 
@@ -55,7 +55,7 @@ int samplefs_get_sb(struct file_system_type *fs_type,
 static struct file_system_type samplefs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "samplefs",
-	.get_sb = samplefs_get_sb,
+	.mount = samplefs_mount,
 	.kill_sb = kill_anon_super,
 	/*  .fs_flags */
 };
