@@ -194,7 +194,7 @@ struct inode *samplefs_get_inode(struct super_block *sb, int mode, dev_t dev)
 			inode->i_op = &sfs_dir_inode_ops;
 
                         /* link == 2 (for initial ".." and "." entries) */
-			set_nlink(inode, 2);
+			inc_nlink(inode);
                         break;
                 }
         }

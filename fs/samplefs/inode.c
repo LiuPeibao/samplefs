@@ -87,7 +87,7 @@ static int sfs_mkdir(struct inode * dir, struct dentry * dentry, int mode)
 
 	/* link count is two for dir, for dot and dot dot */
 	if (!retval)
-		dir->i_nlink++;
+		inc_nlink(dir);
 	return retval;
 }
 
