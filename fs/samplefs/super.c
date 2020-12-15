@@ -109,7 +109,7 @@ static int samplefs_fill_super(struct super_block *sb, void *data, int silent)
 /* Eventually replace iget with:
 	inode = samplefs_get_inode(sb, S_IFDIR | 0755, 0); */
 
-	inode = iget(sb, SAMPLEFS_ROOT_I);
+	inode = iget_locked(sb, SAMPLEFS_ROOT_I);
 
 	if (!inode)
 		return -ENOMEM;
