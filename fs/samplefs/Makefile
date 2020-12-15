@@ -3,4 +3,4 @@
 #
 obj-$(CONFIG_SAMPLEFS_FS) += samplefs.o
 
-samplefs-objs := super.o
+samplefs-objs := super.o inode.o file.o

@@ -43,6 +43,8 @@ unsigned int sample_parm = 0;
 module_param(sample_parm, int, 0);
 MODULE_PARM_DESC(sample_parm, "An example parm. Default: x Range: y to z");
 
+extern struct inode_operations sfs_dir_inode_ops;
+
 static void
 samplefs_put_super(struct super_block *sb)
 {
@@ -156,32 +158,18 @@ static int sfs_delete_dentry(const struct dentry *dentry)
         return 1;
 }
 
-static struct dentry_operations sfs_ci_dentry_ops = {
+struct dentry_operations sfs_dentry_ops = {
+	.d_delete = sfs_delete_dentry,
+};
+
+struct dentry_operations sfs_ci_dentry_ops = {
 /*	.d_revalidate = xxxd_revalidate, Not needed for this type of fs */
 	.d_hash = sfs_ci_hash,
 	.d_compare = sfs_ci_compare,
 	.d_delete = sfs_delete_dentry,
 };
 
-/*
- * Lookup the data, if the dentry didn't already exist, it must be
- * negative.  Set d_op to delete negative dentries to save memory
- * (and since it does not help performance for in memory filesystem).
- */
-static struct dentry *sfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
-{
-	if (dentry->d_name.len > NAME_MAX)
-		return ERR_PTR(-ENAMETOOLONG);
-	dentry->d_op = &sfs_ci_dentry_ops;
-	d_add(dentry, NULL);
-	return NULL;
-}
-
-static struct inode_operations sfs_ci_inode_ops = {
-	.lookup		= sfs_lookup,
-};
-
-static struct inode *samplefs_get_inode(struct super_block *sb, int mode, dev_t dev)
+struct inode *samplefs_get_inode(struct super_block *sb, int mode, dev_t dev)
 {
         struct inode *inode = new_inode(sb);
 	struct samplefs_sb_info *sfs_sb = SFS_SB(sb);
@@ -203,10 +191,7 @@ static struct inode *samplefs_get_inode(struct super_block *sb, int mode, dev_t 
 			break;
                 case S_IFDIR:
 			printk(KERN_INFO "directory inode sfs_sb: %p\n",sfs_sb);
-			if (sfs_sb->flags & SFS_MNT_CASE)
-				inode->i_op = &sfs_ci_inode_ops;
-			else
-	                        inode->i_op = &simple_dir_inode_operations;
+			inode->i_op = &sfs_dir_inode_ops;
 
                         /* link == 2 (for initial ".." and "." entries) */
 			set_nlink(inode, 2);
@@ -284,7 +269,7 @@ static struct file_system_type samplefs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "samplefs",
 	.mount = samplefs_mount,
-	.kill_sb = kill_anon_super,
+	.kill_sb = kill_litter_super,
 	/*  .fs_flags */
 };
 
