@@ -227,7 +227,6 @@ sfs_proc_init(void)
 	if (proc_fs_samplefs == NULL)
 		return;
 
-	proc_fs_samplefs->owner = THIS_MODULE;
 	create_proc_read_entry("DebugData", 0, proc_fs_samplefs,
 				sfs_debug_read, NULL);
 }
