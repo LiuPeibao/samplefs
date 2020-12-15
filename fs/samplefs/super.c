@@ -103,6 +103,10 @@ samplefs_parse_mount_options(char *options, struct samplefs_sb_info *sfs_sb)
 					printk(KERN_INFO
 						"samplefs: wsize %d\n", size);
 			}
+		} else if ((strnicmp(data, "nocase", 6) == 0) ||
+			   (strnicmp(data, "ignorecase", 10)  == 0)) {
+			sfs_sb->flags |= SFS_MNT_CASE;
+			printk(KERN_INFO "samplefs: ignore case\n");
 		} else {
 			printk(KERN_WARNING "samplefs: bad mount option %s\n",
 				data);
@@ -110,9 +114,77 @@ samplefs_parse_mount_options(char *options, struct samplefs_sb_info *sfs_sb)
 	}
 }
 
-struct inode *samplefs_get_inode(struct super_block *sb, int mode, dev_t dev)
+static int sfs_ci_hash(struct dentry *dentry, struct qstr *q)
 {
-        struct inode * inode = new_inode(sb);
+        struct nls_table *codepage = SFS_SB(dentry->d_inode->i_sb)->local_nls;
+        unsigned long hash;
+        int i;
+
+        hash = init_name_hash();
+        for (i = 0; i < q->len; i++)
+                hash = partial_name_hash(nls_tolower(codepage, q->name[i]),
+                                         hash);
+        q->hash = end_name_hash(hash);
+
+        return 0;
+}
+
+static int sfs_ci_compare(struct dentry *dentry, struct qstr *a,
+                           struct qstr *b)
+{
+        struct nls_table *codepage = SFS_SB(dentry->d_inode->i_sb)->local_nls;
+
+        if ((a->len == b->len) &&
+            (nls_strnicmp(codepage, a->name, b->name, a->len) == 0)) {
+                /*
+                 * To preserve case, don't let an existing negative dentry's
+                 * case take precedence.  If a is not a negative dentry, this
+                 * should have no side effects
+                 */
+                memcpy((unsigned char *)a->name, b->name, a->len);
+                return 0;
+        }
+        return 1;
+}
+
+/* No sense hanging on to negative dentries as they are only
+in memory - we are not saving anything as we would for network
+or disk filesystem */
+
+static int sfs_delete_dentry(struct dentry *dentry)
+{
+        return 1;
+}
+
+static struct dentry_operations sfs_ci_dentry_ops = {
+/*	.d_revalidate = xxxd_revalidate, Not needed for this type of fs */
+	.d_hash = sfs_ci_hash,
+	.d_compare = sfs_ci_compare,
+	.d_delete = sfs_delete_dentry,
+};
+
+/*
+ * Lookup the data, if the dentry didn't already exist, it must be
+ * negative.  Set d_op to delete negative dentries to save memory
+ * (and since it does not help performance for in memory filesystem).
+ */
+static struct dentry *sfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
+{
+	if (dentry->d_name.len > NAME_MAX)
+		return ERR_PTR(-ENAMETOOLONG);
+	dentry->d_op = &sfs_ci_dentry_ops;
+	d_add(dentry, NULL);
+	return NULL;
+}
+
+static struct inode_operations sfs_ci_inode_ops = {
+	.lookup		= sfs_lookup,
+};
+
+static struct inode *samplefs_get_inode(struct super_block *sb, int mode, dev_t dev)
+{
+        struct inode *inode = new_inode(sb);
+	struct samplefs_sb_info *sfs_sb = SFS_SB(sb);
 
         if (inode) {
                 inode->i_mode = mode;
@@ -125,11 +197,16 @@ struct inode *samplefs_get_inode(struct super_block *sb, int mode, dev_t dev)
 			init_special_inode(inode, mode, dev);
 			break;
 /* We are not ready to handle files yet */
-/*                case S_IFREG:
-			inode->i_op = &sfs_file_inode_operations;
-			break; */
+                case S_IFREG:
+			printk(KERN_INFO "file inode\n");
+			inode->i_op = &simple_dir_inode_operations;
+			break;
                 case S_IFDIR:
-                        inode->i_op = &simple_dir_inode_operations;
+			printk(KERN_INFO "directory inode sfs_sb: %p\n",sfs_sb);
+			if (sfs_sb->flags & SFS_MNT_CASE)
+				inode->i_op = &sfs_ci_inode_ops;
+			else
+	                        inode->i_op = &simple_dir_inode_operations;
 
                         /* link == 2 (for initial ".." and "." entries) */
 			set_nlink(inode, 2);
@@ -153,11 +230,6 @@ static int samplefs_fill_super(struct super_block *sb, void *data, int silent)
 
 	printk(KERN_INFO "samplefs: fill super\n");
 
-	inode = samplefs_get_inode(sb, S_IFDIR | 0755, 0);
-
-	if (!inode)
-		return -ENOMEM;
-
 #ifdef CONFIG_SAMPLEFS_DEBUG
 	printk(KERN_INFO "samplefs: about to alloc s_fs_info\n");
 #endif
@@ -165,7 +237,12 @@ static int samplefs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_fs_info = kzalloc(sizeof(struct samplefs_sb_info), GFP_KERNEL);
 	sfs_sb = SFS_SB(sb);
 	if (!sfs_sb) {
-		iput(inode);
+		return -ENOMEM;
+	}
+
+	inode = samplefs_get_inode(sb, S_IFDIR | 0755, 0);
+	if (!inode) {
+		kfree(sfs_sb);
 		return -ENOMEM;
 	}
 
@@ -189,7 +266,7 @@ static int samplefs_fill_super(struct super_block *sb, void *data, int silent)
 }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
-struct super_block * samplefs_get_sb(struct file_system_type *fs_type,
+static struct super_block * samplefs_get_sb(struct file_system_type *fs_type,
         int flags, const char *dev_name, void *data)
 {
 	return get_sb_nodev(fs_type, flags, data, samplefs_fill_super);

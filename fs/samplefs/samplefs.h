@@ -24,6 +24,8 @@
  */
 
 #define SAMPLEFS_ROOT_I 2
+/* samplefs mount flags */
+#define SFS_MNT_CASE 1
 
 /* This is an example of filesystem specific mount data that a file system might
    want to store.  FS per-superblock data varies widely and some fs do not
@@ -32,7 +34,7 @@
 struct samplefs_sb_info {
 	unsigned int rsize;
 	unsigned int wsize;
-	int mnt_flags;
+	int flags;
 	struct nls_table *local_nls;
 };
 
