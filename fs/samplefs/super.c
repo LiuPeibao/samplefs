@@ -121,7 +121,7 @@ static int samplefs_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 	}
 
-	sb->s_root = d_alloc_root(inode);
+	sb->s_root = d_make_root(inode);
 	if (!sb->s_root) {
 		iput(inode);
 		kfree(sfs_sb);
