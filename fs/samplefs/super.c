@@ -132,7 +132,7 @@ struct inode *samplefs_get_inode(struct super_block *sb, int mode, dev_t dev)
                         inode->i_op = &simple_dir_inode_operations;
 
                         /* link == 2 (for initial ".." and "." entries) */
-                        inode->i_nlink++;
+			set_nlink(inode, 2);
                         break;
                 }
         }
