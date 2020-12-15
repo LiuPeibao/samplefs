@@ -160,7 +160,6 @@ static int samplefs_fill_super(struct super_block *sb, void *data, int silent)
 #ifdef CONFIG_SAMPLEFS_DEBUG
 	printk(KERN_INFO "samplefs: about to alloc s_fs_info\n");
 #endif
-	inode->i_mode = (S_IFDIR | 0755);
 
 	unlock_new_inode(inode);
 
