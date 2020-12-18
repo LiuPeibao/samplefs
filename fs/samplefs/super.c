@@ -44,6 +44,7 @@ module_param(sample_parm, int, 0);
 MODULE_PARM_DESC(sample_parm, "An example parm. Default: x Range: y to z");
 
 extern struct inode_operations sfs_dir_inode_ops;
+extern struct inode_operations sfs_file_inode_ops;
 
 static void
 samplefs_put_super(struct super_block *sb)
@@ -184,14 +185,15 @@ struct inode *samplefs_get_inode(struct super_block *sb, int mode, dev_t dev)
                 default:
 			init_special_inode(inode, mode, dev);
 			break;
-/* We are not ready to handle files yet */
+		/* We are not ready to handle files yet */
                 case S_IFREG:
 			printk(KERN_INFO "file inode\n");
-			inode->i_op = &simple_dir_inode_operations;
+			inode->i_op = &sfs_file_inode_ops;
 			break;
                 case S_IFDIR:
 			printk(KERN_INFO "directory inode sfs_sb: %p\n",sfs_sb);
 			inode->i_op = &sfs_dir_inode_ops;
+			inode->i_fop = &simple_dir_operations;
 
                         /* link == 2 (for initial ".." and "." entries) */
 			inc_nlink(inode);

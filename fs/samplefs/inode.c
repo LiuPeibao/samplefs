@@ -97,6 +97,9 @@ static int sfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	return sfs_mknod(dir, dentry, mode | S_IFREG, 0);
 }
 
+struct inode_operations sfs_file_inode_ops = {
+	.getattr	= simple_getattr,
+};
 
 struct inode_operations sfs_dir_inode_ops = {
 	.create         = sfs_create,
