@@ -35,6 +35,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include "samplefs.h"
+#include <linux/backing-dev.h>
 
 /* helpful if this is different than other fs */
 #define SAMPLEFS_MAGIC     0x73616d70 /* "SAMP" */
@@ -45,6 +46,8 @@ MODULE_PARM_DESC(sample_parm, "An example parm. Default: x Range: y to z");
 
 extern struct inode_operations sfs_dir_inode_ops;
 extern struct inode_operations sfs_file_inode_ops;
+extern struct file_operations sfs_file_operations;
+extern struct address_space_operations sfs_aops;
 
 static void
 samplefs_put_super(struct super_block *sb)
@@ -170,6 +173,14 @@ struct dentry_operations sfs_ci_dentry_ops = {
 	.d_delete = sfs_delete_dentry,
 };
 
+static struct backing_dev_info sfs_backing_dev_info = {
+	.ra_pages       = 0,    /* No readahead */
+	.capabilities   = BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_WRITEBACK |
+			  BDI_CAP_MAP_DIRECT | BDI_CAP_MAP_COPY |
+			  BDI_CAP_READ_MAP | BDI_CAP_WRITE_MAP |
+			  BDI_CAP_EXEC_MAP,
+};
+
 struct inode *samplefs_get_inode(struct super_block *sb, int mode, dev_t dev)
 {
         struct inode *inode = new_inode(sb);
@@ -181,6 +192,9 @@ struct inode *samplefs_get_inode(struct super_block *sb, int mode, dev_t dev)
                 inode->i_gid = current->cred->fsgid;
                 inode->i_blocks = 0;
                 inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+		printk(KERN_INFO "about to set inode ops\n");
+		inode->i_mapping->a_ops = &sfs_aops;
+		inode->i_mapping->backing_dev_info = &sfs_backing_dev_info;
                 switch (mode & S_IFMT) {
                 default:
 			init_special_inode(inode, mode, dev);
@@ -189,6 +203,7 @@ struct inode *samplefs_get_inode(struct super_block *sb, int mode, dev_t dev)
                 case S_IFREG:
 			printk(KERN_INFO "file inode\n");
 			inode->i_op = &sfs_file_inode_ops;
+			inode->i_fop = &sfs_file_operations;
 			break;
                 case S_IFDIR:
 			printk(KERN_INFO "directory inode sfs_sb: %p\n",sfs_sb);
