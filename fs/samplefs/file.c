@@ -30,8 +30,8 @@
 
 struct address_space_operations sfs_aops = {
 	.readpage       = simple_readpage,
-	.prepare_write  = simple_prepare_write,
-	.commit_write   = simple_commit_write,
+	.write_begin    = simple_write_begin,
+	.write_end      = simple_write_end,
 };
 
 struct file_operations sfs_file_operations = {
@@ -40,7 +40,7 @@ struct file_operations sfs_file_operations = {
 	.write          = do_sync_write,
 	.aio_write	= generic_file_aio_write,
 	.mmap           = generic_file_mmap,
-	.fsync          = simple_sync_file,
-	.sendfile       = generic_file_sendfile,
+	.fsync          = noop_fsync,
+	.splice_read    = generic_file_splice_read,
 	.llseek         = generic_file_llseek,
 };
