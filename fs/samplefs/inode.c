@@ -97,6 +97,28 @@ static int sfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	return sfs_mknod(dir, dentry, mode | S_IFREG, 0);
 }
 
+static int sfs_symlink(struct inode * dir, struct dentry *dentry,
+			const char * symname)
+{
+	struct inode *inode;
+	int error = -ENOSPC;
+
+	inode = samplefs_get_inode(dir->i_sb, S_IFLNK|S_IRWXUGO, 0);
+	if (inode) {
+		int l = strlen(symname)+1;
+		error = page_symlink(inode, symname, l);
+		if (!error) {
+			if (dir->i_mode & S_ISGID)
+				inode->i_gid = dir->i_gid;
+			d_instantiate(dentry, inode);
+			dget(dentry);
+			dir->i_mtime = dir->i_ctime = CURRENT_TIME;
+		} else
+			iput(inode);
+	}
+	return error;
+}
+
 struct inode_operations sfs_file_inode_ops = {
 	.getattr	= simple_getattr,
 };
@@ -104,7 +126,9 @@ struct inode_operations sfs_file_inode_ops = {
 struct inode_operations sfs_dir_inode_ops = {
 	.create         = sfs_create,
 	.lookup         = sfs_lookup,
+	.link           = simple_link,
 	.unlink         = simple_unlink,
+	.symlink        = sfs_symlink,
 	.mkdir          = sfs_mkdir,
 	.rmdir          = simple_rmdir,
 	.mknod          = sfs_mknod,
